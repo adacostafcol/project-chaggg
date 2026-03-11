@@ -18,12 +18,12 @@ else:
     print("Raw dataset already exists, skipping.")
 
 # Processed data
-PROCESSED_FILE_ID = "your_processed_file_id_here"
-PROCESSED_OUTPUT = "data/chicago_crimes_2001_2025_cleaned.csv"
+#PROCESSED_FILE_ID = "your_processed_file_id_here"
+#PROCESSED_OUTPUT = "data/chicago_crimes_2001_2025_cleaned.csv"
 
-if not os.path.exists(PROCESSED_OUTPUT):
-    print("Downloading processed dataset...")
-    gdown.download(f"https://drive.google.com/uc?id={PROCESSED_FILE_ID}", PROCESSED_OUTPUT, quiet=False)
-    print("Done.")
-else:
-    print("Processed dataset already exists, skipping.")
+#if not os.path.exists(PROCESSED_OUTPUT):
+    #print("Downloading processed dataset...")
+    #gdown.download(f"https://drive.google.com/uc?id={PROCESSED_FILE_ID}", PROCESSED_OUTPUT, quiet=False)
+    #print("Done.")
+#else:
+    #print("Processed dataset already exists, skipping.")
