@@ -1,4 +1,21 @@
-# this is how we cleaned the data
+# ==============================================================================
+# This is how we are cleaning the data 
+# ==============================================================================
+
+# ── Loading libraries ─────────────────────────────────────────────────────────
+import pandas as pd
+import os
+
+# ── Load data ─────────────────────────────────────────────────────────────────
+RAW_DATA_PATH = 'data/raw/chicago_crimes_2001_2025_raw.csv'
+
+if not os.path.exists(RAW_DATA_PATH):
+    print("Raw data not found. Please run download_data.py first.")
+    exit(1)
+
+print("Loading raw data...")
+df = pd.read_csv(RAW_DATA_PATH, low_memory=False)
+
 # ── Basic info ────────────────────────────────────────────────────────────────
 print(df.describe())
 print(df.shape)
@@ -33,10 +50,23 @@ print("domestic unique values:", df["domestic"].unique())
 
 # ── Type conversions ──────────────────────────────────────────────────────────
 
-# date and updated_on should be datetime
-# errors='coerce' turns unparseable values into NaT rather than crashing
-df["date"]       = pd.to_datetime(df["date"], errors="coerce")
-df["updated_on"] = pd.to_datetime(df["updated_on"], errors="coerce")
+# date-time conversions
+
+date_series = []
+for date in df['date']:
+    date_series.append(date[0:10])
+
+time_series = []
+for time in df['date']:
+    time_series.append(time[11:19])
+
+df['date'] = date_series
+df['time'] = time_series
+
+df['date'] = pd.to_datetime(df['date'], format = "%Y-%m-%d")
+df['time'] = pd.to_datetime(df['time'], format = "%H:%M:%S").dt.time
+
+df[['date', 'time']].tail(10)
 
 # district, ward, community_area should be integer
 # Int64 (capital I) is used because these columns have missing values
@@ -60,14 +90,29 @@ missing_summary = pd.DataFrame({
 missing_summary
 
 # ── Remove coordinates outside Chicago ───────────────────────────────────────
+
+# we first remove the location column: is redundant ('y-coordinate' and
+# 'x-coordinate' already have the same information).
+
+df = df.drop(columns=['location'])
+
+# ── Remove coordinates outside Chicago ───────────────────────────────────────
 # Valid Chicago latitude range: 41.6 - 42.1
 # Valid Chicago longitude range: -87.9 - -87.5
-#df.loc[~df["latitude"].between(41.6, 42.1), "latitude"] = None
-#df.loc[~df["longitude"].between(-87.9, -87.5), "longitude"] = None
+print(f'Observations with invalid latitude coordinates: ',len(df[~df['latitude'].between(41.6, 42.1)]))
+print(f'Obsevations with null values in latitude coordinates: ',len(df[df['latitude'].isnull()]))
+print(f'Thus, observations with non-null values yet out-of-range latitude coordinates:',
+      len(df[~df['latitude'].between(41.6, 42.1)]) - len(df[df['latitude'].isnull()]))
 
-#print("Latitude range:", df["latitude"].min(), "-", df["latitude"].max())
-#print("Longitude range:", df["longitude"].min(), "-", df["longitude"].max())
-#commented out incase we don't want ot do it
+print(f'Observations with invalid longitude coordinates: ',len(df[~df['longitude'].between(-87.9, -87.5)]))
+print(f'Obsevations with null values in longitude coordinates: ',len(df[df['longitude'].isnull()]))
+print(f'Thus, observations with non-null values yet out-of-range longitude coordinates:',
+      len(df[~df['longitude'].between(-87.9, -87.5)]) - len(df[df['longitude'].isnull()]))
+
+# It would be safe to delete observations with null-values in either latitude or longitude.
+# Deleting 149 observations without valid latitude coordinates might be safe, but doing so
+# for 27759 observations without valid longitud coordinates might not. Further exploration
+# might be required before making a decision.
 
 # ── Missing data analysis ─────────────────────────────────────────────────────
 
@@ -98,3 +143,11 @@ for col in df.select_dtypes(include="object").columns:
     nan_string  = (df[col].astype(str) == "nan").sum()
     if empty_count > 0 or nan_string > 0:
         print(col, "- empty strings:", empty_count, "| 'nan' strings:", nan_string)
+
+# ── Save cleaned data ─────────────────────────────────────────────────────────
+df = df.drop(columns=["has_missing"])
+
+CLEAN_DATA_PATH = 'data/cleaned/chicago_crimes_cleaned.csv'
+os.makedirs('data/cleaned', exist_ok=True)
+df.to_csv(CLEAN_DATA_PATH, index=False)
+print(f"Cleaned data saved to {CLEAN_DATA_PATH}")
