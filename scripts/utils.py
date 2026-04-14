@@ -79,6 +79,55 @@ def get_data_info():
         else:
             print(f"✗ {name:20s} {'(not found)':>10s}  {path}")
 
+def haversine(lat1, lon1, lat2, lon2):
+    """
+    Calculate the great-circle distance between two points on Earth.
+    
+    Parameters:
+        lat1, lon1: Latitude and longitude of point 1 (in decimal degrees)
+        lat2, lon2: Latitude and longitude of point 2 (in decimal degrees)
+    
+    Returns:
+        Distance in kilometers
+    """
+    import math
+    
+    # Convert degrees to radians
+    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+
+    # Differences
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    # Haversine formula
+    a = math.sin(dlat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    R = 6371  # Earth's radius in kilometers
+    return R * c
+
+
+def get_spatial_bounds(df):
+    """
+    Calculate spatial bounds and maximum distance for normalization.
+    
+    Parameters:
+        df: DataFrame with 'latitude' and 'longitude' columns
+    
+    Returns:
+        dict with 'max_distance' (km) and 'bounds' (lat/lon ranges)
+    """
+    max_lat, min_lat = df['latitude'].max(), df['latitude'].min()
+    max_lon, min_lon = df['longitude'].max(), df['longitude'].min()
+    max_distance = haversine(min_lat, min_lon, max_lat, max_lon)
+    
+    return {
+        'max_distance': max_distance,
+        'bounds': {
+            'lat': (min_lat, max_lat),
+            'lon': (min_lon, max_lon)
+        }
+    }
+
 if __name__ == "__main__":
     print("=" * 60)
     print("CHICAGO CRIME DATA UTILITIES")
