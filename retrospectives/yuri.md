@@ -1,0 +1,2 @@
+- removed invlaid latitute and longitude because they made the largest distance between two coordinate points being 600km, I realised this when I tried to find the max distance to normalise the similarity function 
+- number of days in months are always different. but to still have them cyclical so that 31.04 is close to 01.05, I used 31 to make it cyclical 
