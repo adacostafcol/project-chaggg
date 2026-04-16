@@ -5,8 +5,11 @@ Common usage:
     from scripts.utils import load_data
     df = load_data()
 """
+
 import pandas as pd
 import os
+import math
+
 try:
     from .config import *  # When imported as a module (Flask)
 except ImportError:
@@ -90,7 +93,6 @@ def haversine(lat1, lon1, lat2, lon2):
     Returns:
         Distance in kilometers
     """
-    import math
     
     # Convert degrees to radians
     lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
@@ -127,6 +129,76 @@ def get_spatial_bounds(df):
             'lon': (min_lon, max_lon)
         }
     }
+
+def cyclical_distance(value1, value2, max_value):
+    """
+    Calculate distance between two cyclical values using sine-cosine encoding.
+    
+    Parameters:
+        value1, value2: The cyclical values (e.g., hour=23, hour=1)
+        max_value: Maximum value in the cycle (e.g., 24 for hours, 7 for day_of_week)
+    
+    Returns:
+        Distance between 0 and 1
+    """
+    # Convert to angles on unit circle
+    angle1 = 2 * math.pi * value1 / max_value
+    angle2 = 2 * math.pi * value2 / max_value
+    
+    # Compute sin/cos coordinates
+    sin1, cos1 = math.sin(angle1), math.cos(angle1)
+    sin2, cos2 = math.sin(angle2), math.cos(angle2)
+    
+    # Euclidean distance on unit circle
+    distance = math.sqrt((sin1 - sin2)**2 + (cos1 - cos2)**2)
+    
+    # Normalize to [0, 1] (max distance on unit circle is 2)
+    return distance / 2.0
+
+def temporal_distance(month1, day1, hour1, dow1, month2, day2, hour2, dow2):
+    """
+    Calculate normalized temporal distance between two crimes.
+    Uses cyclical encoding for month, hour, and day_of_week.
+    
+    Parameters:
+        month1, day1, hour1, dow1: Time components of crime 1
+        month2, day2, hour2, dow2: Time components of crime 2
+        (month: 1-12, dow = day_of_week: 0=Monday, 6=Sunday)
+    
+    Returns:
+        Temporal distance score between 0 and 1
+    """
+    # Cyclical features
+    month_dist = cyclical_distance(month1, month2, 12)     # months range 1-12
+    hour_dist = cyclical_distance(hour1, hour2, 24)        # hours range 0-23
+    dow_dist = cyclical_distance(dow1, dow2, 7)            # day_of_week range 0-6
+    day_dist = cyclical_distance(day1, day2, 31)           # days range 1-31
+
+    # Average the four normalized differences
+    return (month_dist + day_dist + hour_dist + dow_dist) / 4
+
+def combined_distance(crime1, crime2, max_distance, alpha=0.5, beta=0.5):
+    """
+    Combined spatial and temporal distance between two crimes.
+    
+    Parameters:
+        crime1, crime2: dicts or rows with keys 'latitude', 'longitude', 
+                        'month', 'day', 'hour', 'day_of_week'
+        alpha: weight for spatial distance
+        beta: weight for temporal distance
+    
+    Returns:
+        Combined distance score
+    """
+    spatial = haversine(crime1['latitude'], crime1['longitude'], 
+                        crime2['latitude'], crime2['longitude'])
+    temporal = temporal_distance(crime1['month'], crime1['day'], crime1['hour'], crime1['day_of_week'],
+                                 crime2['month'], crime2['day'], crime2['hour'], crime2['day_of_week'])
+    
+    # Normalise spatial to [0, 1] scale using max_distance in dataset
+    spatial_normalized = spatial / max_distance 
+    
+    return alpha * spatial_normalized + beta * temporal
 
 if __name__ == "__main__":
     print("=" * 60)
